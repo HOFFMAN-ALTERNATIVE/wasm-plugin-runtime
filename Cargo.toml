@@ -1,0 +1,38 @@
+[package]
+name = "wasm-plugin-runtime"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+description = "Sandboxed WebAssembly component plugin host on wasmtime: fuel, memory, wall-clock and capability limits"
+license = "MIT"
+repository = "https://github.com/HOFFMAN-ALTERNATIVE/wasm-plugin-runtime"
+keywords = ["wasm", "wasmtime", "plugins", "sandbox", "wasi"]
+categories = ["wasm", "development-tools"]
+exclude = ["plugins/target", ".github"]
+
+[lib]
+name = "plugin_runtime"
+
+[[bin]]
+name = "wpr"
+path = "src/bin/wpr.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli"]
+cli = ["dep:clap", "dep:serde_json"]
+
+[dependencies]
+wasmtime = { version = "49.0.3", default-features = false, features = ["runtime", "cranelift", "component-model", "parallel-compilation", "std"] }
+wasmtime-wasi = { version = "49.0.3", default-features = false, features = ["p2"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+thiserror = "2"
+clap = { version = "4", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"

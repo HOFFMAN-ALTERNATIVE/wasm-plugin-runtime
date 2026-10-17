@@ -1,0 +1,10 @@
+name = "kv-counter"
+component = "../plugins/target/wasm32-wasip2/release/kv_counter.wasm"
+
+[limits]
+fuel = 10_000_000
+memory-mib = 16
+timeout-ms = 200
+
+[capabilities]
+kv = true

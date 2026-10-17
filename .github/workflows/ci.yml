@@ -1,0 +1,118 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: fmt · clippy (host + plugins)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            plugins
+      - run: cargo fmt --all -- --check
+      - run: cargo fmt --all --manifest-path plugins/Cargo.toml -- --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - name: library builds without the CLI deps
+        run: cargo clippy --lib --no-default-features --locked -- -D warnings
+      - run: cargo clippy --manifest-path plugins/Cargo.toml --target wasm32-wasip2 --locked -- -D warnings
+
+  msrv:
+    name: build on MSRV 1.96 (wasmtime 49 floor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@1.96.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-targets --locked
+
+  test:
+    name: sandbox tests · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            plugins
+      - run: cargo build --manifest-path plugins/Cargo.toml --release --target wasm32-wasip2 --locked
+      - run: cargo test --locked
+
+  cli:
+    name: CLI smoke + benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            plugins
+      - run: cargo build --manifest-path plugins/Cargo.toml --release --target wasm32-wasip2 --locked
+      - run: cargo build --release --locked
+      - name: every hostile mode is contained
+        run: |
+          set -euo pipefail
+          wpr=./target/release/wpr
+          check() { # manifest input expected-outcome
+            out=$($wpr run "manifests/$1.toml" --input "$2" || true)
+            got=$(echo "$out" | tail -1 | jq -r .outcome)
+            echo "$1 $2 -> $got"
+            test "$got" = "$3"
+          }
+          check hello world ok
+          check fs-cat /data/note.txt ok
+          check hostile spin fuel_exhausted
+          check hostile alloc memory_limit
+          check hostile panic trap
+          check hostile kv plugin_error
+          check hostile fs plugin_error
+          check hostile big-output output_too_large
+          test "$($wpr run manifests/kv-counter.toml --input c --repeat 3 | tail -1 | jq -r .output)" = 3
+          $wpr inspect manifests/hello.toml
+      - name: per-call latency (fresh instance per call)
+        run: |
+          {
+            echo '## Per-call latency, release build'
+            echo
+            ./target/release/wpr bench manifests/hello.toml --input world --iterations 5000
+            echo
+            ./target/release/wpr bench manifests/hello.toml --input world --iterations 20000 --threads 4
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: cargo audit
+      - run: cargo audit --file plugins/Cargo.lock

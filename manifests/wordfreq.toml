@@ -1,0 +1,8 @@
+name = "wordfreq"
+component = "../plugins/target/wasm32-wasip2/release/wordfreq.wasm"
+
+[limits]
+fuel = 2_000_000_000
+memory-mib = 64
+timeout-ms = 2_000
+max-output-bytes = 4096

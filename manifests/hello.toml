@@ -1,0 +1,7 @@
+name = "hello"
+component = "../plugins/target/wasm32-wasip2/release/hello.wasm"
+
+[limits]
+fuel = 10_000_000
+memory-mib = 16
+timeout-ms = 200

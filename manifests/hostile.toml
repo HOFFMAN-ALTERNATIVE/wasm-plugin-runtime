@@ -1,0 +1,10 @@
+# Tight limits on purpose: every mode should be stopped by one of them.
+name = "hostile"
+component = "../plugins/target/wasm32-wasip2/release/hostile.wasm"
+
+[limits]
+fuel = 200_000_000
+memory-mib = 32
+timeout-ms = 500
+max-log-bytes = 1024
+max-output-bytes = 65536

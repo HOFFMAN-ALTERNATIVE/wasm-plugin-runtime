@@ -1,0 +1,10 @@
+name = "fs-cat"
+component = "../plugins/target/wasm32-wasip2/release/fs_cat.wasm"
+
+[limits]
+fuel = 50_000_000
+memory-mib = 16
+timeout-ms = 500
+
+[capabilities]
+read-dirs = [{ host = "data", guest = "/data" }]

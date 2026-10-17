@@ -1,0 +1,34 @@
+package wpr:plugin@0.1.0;
+
+/// Functions the host offers to every plugin. Each one is gated by the
+/// plugin's manifest; a capability that was not granted returns an error
+/// (or, for `log`, is silently dropped) instead of trapping.
+interface host {
+  enum level { debug, info, warn, error }
+
+  /// Structured log line attributed to the calling plugin. Bounded by
+  /// `limits.max-log-bytes`; lines past the budget are dropped and counted.
+  log: func(level: level, message: string);
+
+  /// Per-plugin key/value storage. Namespaced by plugin name, so one plugin
+  /// can never read another's keys. Requires `capabilities.kv`.
+  kv-get: func(key: string) -> result<option<string>, string>;
+  kv-set: func(key: string, value: string) -> result<_, string>;
+}
+
+world plugin {
+  import host;
+
+  record info {
+    name: string,
+    version: string,
+    description: string,
+  }
+
+  /// Static metadata, used by `wpr inspect`.
+  export describe: func() -> info;
+
+  /// One invocation. Every call runs in a fresh instance, so plugins are
+  /// stateless between calls unless they use `kv`.
+  export run: func(input: string) -> result<string, string>;
+}
